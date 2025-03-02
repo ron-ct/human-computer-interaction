@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 void main() {
   runApp(const MyApp());
@@ -11,10 +12,10 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'Speech Recognition Demo',
       theme: ThemeData(
         // This is the theme of your application.
-        //
+        primarySwatch: Colors.blue,
         // TRY THIS: Try running your application with "flutter run". You'll see
         // the application has a purple toolbar. Then, without quitting the app,
         // try changing the seedColor in the colorScheme below to Colors.green
@@ -28,15 +29,14 @@ class MyApp extends StatelessWidget {
         //
         // This works for code too, not just values: Most code changes can be
         // tested with just a hot reload.
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      home: const SpeechHomePage(title: 'Flutter Demo Home Page'),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
+class SpeechHomePage extends StatefulWidget {
+  const SpeechHomePage({super.key, required this.title});
 
   // This widget is the home page of your application. It is stateful, meaning
   // that it has a State object (defined below) that contains fields that affect
@@ -50,11 +50,15 @@ class MyHomePage extends StatefulWidget {
   final String title;
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  _SpeechHomePageState<MyHomePage> createState() => _SpeechHomePageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
+class _SpeechHomePageState extends State<SpeechHomePage> {
+  late stt.SpeechToText _speech;
+  bool _isListening = false;
+  String _recognizedText ='';
   int _counter = 0;
+
 
   void _incrementCounter() {
     setState(() {
@@ -65,7 +69,52 @@ class _MyHomePageState extends State<MyHomePage> {
       // called again, and so nothing would appear to happen.
       _counter++;
     });
+    void initState(){
+      super.initState();
+      _speech = stt.SpeechToText();
+      _initializeSpeechRecognizer();
+    }
+
+    void _initializeSpeechRecognizer() async {
+      bool available = await _speech.initialize(
+        onStatus: (status) => print('Status: $status'),
+        onError: (error) => print('Error: $error'),
+      );
+      if (!available) {
+        print("The user has denied the use of speech recognition.");
+      }
+    }
+
+    void _startListening() async {
+      await _speech.listen(onResult: _onSpeechResult);
+      setState(() {
+        _isListening = true;
+      });
+    }
+
+    void _stopListening() async {
+      await _speech.stop();
+      setState(() {
+        _isListening = false;
+      });
+    }
+
+    void _onSpeechResult(stt.SpeechRecognitionResult result) {
+      setState(() {
+        _recognizedText = result.recognizedWords;
+      });
+      // Process the recognized text
+      if (_recognizedText.toLowerCase().contains('blue')) {
+        // Execute action for "blue" command
+      } else if (_recognizedText.toLowerCase().contains('red')) {
+        // Execute action for "red" command
+      } else {
+        // Handle unrecognized command
+      }
+    }
   }
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -83,7 +132,7 @@ class _MyHomePageState extends State<MyHomePage> {
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         // Here we take the value from the MyHomePage object that was created by
         // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
+        title: Text('Speech Recognition Demo'),
       ),
       body: Center(
         // Center is a layout widget. It takes a single child and positions it
@@ -104,18 +153,22 @@ class _MyHomePageState extends State<MyHomePage> {
           // wireframe for each widget.
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
-            const Text('You have pushed the button this many times:'),
             Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
+              'Recognized Words:',
+              style: TextStyle(fontSize: 20.0),
+            ),
+            SizedBox(height: 20),
+            Text(
+              _isListening ? '$_recognizedText' : 'Tap the microphone to start listening...',
+              style: TextStyle(fontSize: 16.0),
             ),
           ],
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
+        onPressed: _isListening ? _stopListening : _startListening,
+        tooltip: 'Listen',
+        child: Icon(_isListening ? Icons.mic : Icons.mic_none),
       ), // This trailing comma makes auto-formatting nicer for build methods.
     );
   }
